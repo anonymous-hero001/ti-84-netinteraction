@@ -7,13 +7,15 @@ An amalgamation of resources to transmit data between two TI-84 calculators wire
 
 ### ON YOUR HOME COMPUTER:
 
-1. Make sure you have python installed on your home computer in addition to PIP (to get requests & tivars libraries), or have a portable version of both 
+1. Download the latest release
 
-2. Use software similar or exactly like TI Connect CE to transmit all .8xp and .8xg files to the calculator using the USB-A to USB-B port, and save it in the archive. This does require administrative access, but it is one-time only. You can use a standard account for the following steps.
+2. Make sure you have python installed on your home computer in addition to PIP (to get requests & tivars libraries), or have a portable version of both 
 
-3. Modify the messenger.py script to use a custom server, or leave it as is to use the automatic server. If running locally, change the server to localhost.
+3. Use software similar or exactly like TI Connect CE to transmit all .8xp and .8xg files to the calculator using the USB-A to USB-B port, and save it in the archive. This does require administrative access, but it is one-time only. You can use a standard account for the following steps.
 
-4. Run the messenger.py script
+4. Modify the messenger.py script to use a custom server, or leave it as is to use the automatic server. If running locally, change the server to localhost.
+
+5. Run the messenger.py script
 
 ### ON YOUR CALCULATOR
 
