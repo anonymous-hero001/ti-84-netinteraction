@@ -47,6 +47,14 @@ An amalgamation of resources to transmit data between two TI-84 calculators wire
 
 3. Press enter to get new messages
 
+#### TO USE AI:
+
+1. Open up prgmHELP and insert your question
+
+2. Open up prgmTRANSFER to transmit the request and get back data
+
+3. Choose the receive mode on the program to receive the AI response
+
 ## NOTES:
 
 This must be plugged into your laptop or computer at all times to receive/authenticate/send messages
