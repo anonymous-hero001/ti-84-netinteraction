@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import uuid
 import hashlib
 import time
+import requests
 from datetime import datetime
 
 app = Flask(__name__)
@@ -9,6 +10,10 @@ app = Flask(__name__)
 users = {}
 sessions = {}
 messages = {}
+ai_responses = {}
+
+DEEPSEEK_API_KEY = "sk-d27c01d0950743e4b132d338a924b523"
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -18,6 +23,43 @@ def generate_session_id():
 
 def validate_session(session_id):
     return session_id in sessions and sessions[session_id]['expires'] > time.time()
+
+def query_deepseek_ai(question):
+    try:
+        headers = {
+            'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are answering questions. Keep responses short (1-2 sentences), and only use uppercase letters"
+                },
+                {
+                    "role": "user", 
+                    "content": question
+                }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+        }
+        
+        response = requests.post(DEEPSEEK_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            ai_answer = result['choices'][0]['message']['content'].strip()
+            return ai_answer.upper()
+        else:
+            print(f"DeepSeek API error: {response.status_code} - {response.text}")
+            return "ERROR: AI SERVICE UNAVAILABLE"
+            
+    except Exception as e:
+        print(f"DeepSeek API exception: {e}")
+        return "ERROR: AI REQUEST FAILED"
 
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -51,6 +93,9 @@ def signup():
     
     if username not in messages:
         messages[username] = []
+    
+    if username not in ai_responses:
+        ai_responses[username] = []
     
     print(f"✓ New user registered: {username}")
     
@@ -154,16 +199,89 @@ def get_messages():
         'count': len(user_messages)
     })
 
+@app.route('/ai_question', methods=['POST'])
+def ai_question():
+    data = request.json
+    session_id = data.get('session_id')
+    username = data.get('username')
+    question = data.get('question')
+    
+    if not all([session_id, username, question]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    if not validate_session(session_id):
+        return jsonify({'error': 'Invalid or expired session'}), 401
+    
+    session_user = sessions[session_id]['username']
+    if session_user != username:
+        return jsonify({'error': 'Session user mismatch'}), 401
+    
+    print(f"✓ AI question from {username}: {question}")
+    
+    ai_answer = query_deepseek_ai(question)
+    
+    if username not in ai_responses:
+        ai_responses[username] = []
+    
+    response_data = {
+        'question': question,
+        'answer': ai_answer,
+        'timestamp': time.time(),
+        'formatted_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
+    ai_responses[username].append(response_data)
+    
+    print(f"✓ AI response for {username}: {ai_answer}")
+    
+    return jsonify({
+        'message': 'AI response generated',
+        'answer': ai_answer,
+        'timestamp': response_data['formatted_time']
+    })
+
+@app.route('/get_ai_response', methods=['GET'])
+def get_ai_response():
+    session_id = request.args.get('session_id')
+    
+    if not session_id:
+        return jsonify({'error': 'Session ID required'}), 400
+    
+    if not validate_session(session_id):
+        return jsonify({'error': 'Invalid or expired session'}), 401
+    
+    username = sessions[session_id]['username']
+    
+    if username not in ai_responses:
+        ai_responses[username] = []
+    
+    user_ai_responses = ai_responses[username]
+    
+    if user_ai_responses:
+        latest_response = user_ai_responses[-1]
+        print(f"✓ Retrieved AI response for {username}: {latest_response['answer']}")
+        
+        return jsonify({
+            'response': latest_response,
+            'answer': latest_response['answer']
+        })
+    else:
+        return jsonify({
+            'response': None,
+            'answer': ''
+        })
+
 @app.route('/status', methods=['GET'])
 def status():
     active_sessions = sum(1 for s in sessions.values() if s['expires'] > time.time())
     
     return jsonify({
-        'server': 'TI-84 Plus CE Message Server',
+        'server': 'TI-84 Plus CE Message Server with AI',
         'status': 'running',
         'users': len(users),
         'active_sessions': active_sessions,
         'total_messages': sum(len(msgs) for msgs in messages.values()),
+        'total_ai_responses': sum(len(responses) for responses in ai_responses.values()),
         'timestamp': datetime.now().isoformat()
     })
 
@@ -185,8 +303,8 @@ def cleanup_expired_sessions():
         print(f"✓ Cleaned up expired session for {username}")
 
 if __name__ == '__main__':
-    print("=== TI-84 Plus CE Message Server ===")
+    print("=== TI-84 Plus CE Message Server with AI ===")
     print("Starting server on http://localhost:5000")
     print("="*40)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='localhost', port=5000, debug=True)
